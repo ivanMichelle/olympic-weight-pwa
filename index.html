@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Calculadora Olímpica — RM & %</title>
+  <meta name="theme-color" content="#0f172a" />
+  <!-- iOS PWA essentials -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Calc Olímpica">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- Manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#9ca3af; --text:#e5e7eb; --accent:#22d3ee; --ok:#34d399; --warn:#f59e0b; --err:#f87171; --maxw: min(100vw, 1000px); }
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+         background:linear-gradient(180deg,#0b1022,#0f172a);color:var(--text);
+         padding-bottom: env(safe-area-inset-bottom);}
+    .wrap{max-width:var(--maxw);margin:0 auto;padding:16px; padding-top: max(16px, env(safe-area-inset-top));}
+    h1{font-weight:800;letter-spacing:.2px;font-size:clamp(1.2rem, 2.5vw, 1.8rem);margin:.2rem 0 .6rem}
+    .grid{display:grid;gap:12px}
+    .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media (max-width: 980px){.g-2,.g-3{grid-template-columns:1fr}}
+    .card{background:rgba(17,24,39,.78);backdrop-filter:blur(6px);
+          border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:14px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    label{font-size:.95rem;color:var(--muted)}
+    select,input[type=number],input[type=text]{background:#0b1220;border:1px solid rgba(255,255,255,.10);color:var(--text);
+      padding:14px 14px;border-radius:12px;font-size:1.05rem;min-height:48px}
+    input[type=number]{width:120px}
+    .btn{cursor:pointer;border:1px solid rgba(255,255,255,.15);background:#0b1220;color:var(--text);
+      padding:12px 16px;border-radius:12px;font-weight:700;min-height:48px}
+    .btn:active{transform:scale(.99)}
+    .btn:hover{border-color:var(--accent)}
+    .btn.primary{background:linear-gradient(90deg,#06b6d4,#22d3ee);color:#06222a;border:none}
+    .btn.ghost{background:transparent}
+    .btn.warn{background:#291a05;border-color:#4d3007;color:#ffd38a}
+    .btn.ok{background:#072915;border-color:#0f5132;color:#b9f6cf}
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;border:1px solid rgba(255,255,255,.08);
+      background:#0b1220;color:var(--muted);font-size:.95rem}
+    .plate-row{display:grid;grid-template-columns:110px 1fr auto auto;gap:8px;align-items:center;margin-bottom:8px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0b1220;border:1px dashed rgba(255,255,255,.12);
+      font-variant-numeric:tabular-nums}
+    .summary{line-height:1.6}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .muted{color:var(--muted)}
+    .hr{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);margin:10px 0}
+    .title{font-weight:800;font-size:1.1rem}
+    .foot{font-size:.9rem;color:var(--muted)}
+    .kbd{border:1px solid rgba(255,255,255,.15);border-bottom-width:2px;background:#0b1220;border-radius:6px;padding:2px 6px;font-family:monospace}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{cursor:pointer;border:1px solid rgba(255,255,255,.15);padding:10px 14px;border-radius:999px;min-height:44px}
+    .chip:hover{border-color:var(--accent)}
+    .toolbar{position:sticky;bottom:0;left:0;right:0;display:flex;gap:8px;justify-content:space-between;align-items:center;
+      background:rgba(15,23,42,.7);backdrop-filter:blur(8px);padding:10px 14px;border-top:1px solid rgba(255,255,255,.08);
+      margin-top:10px;border-radius:12px}
+    @media print{ .btn,.chips,.toolbar{display:none !important} .card{background:white;color:black;border-color:#ddd} body{background:white;color:black}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🏋️‍♂️ Calculadora Olímpica — Total y % del RM</h1>
+    <p class="muted">Optimizada para iPhone 16 Plus (toques ≥44px, seguro en áreas notch). Usa como <strong>PWA</strong> (Añadir a pantalla de inicio) y funciona sin conexión.</p>
+
+    <div class="grid g-3">
+      <!-- Configuración -->
+      <section class="card">
+        <div class="title">1) Configuración</div>
+        <div class="hr"></div>
+        <div class="row">
+          <label for="units">Unidades</label>
+          <select id="units">
+            <option value="lb" selected>Libras (lb)</option>
+            <option value="kg">Kilos (kg)</option>
+          </select>
+          <span class="badge">Conversión automática lb ⇄ kg</span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label for="bar">Barra</label>
+          <select id="bar">
+            <option value="45" selected>45 lb (barra olímpica)</option>
+            <option value="35">35 lb</option>
+          </select>
+          <span class="pill">Peso barra actual: <span id="barDisplay" class="mono">45.0 lb</span></span>
+        </div>
+        <div style="margin-top:8px" class="foot">Tip: cambia <span class="kbd">Unidades</span> para ver todo en kg.</div>
+      </section>
+
+      <!-- Agregar discos (un lado) -->
+      <section class="card">
+        <div class="title">2) Agrega discos (un lado)</div>
+        <div class="hr"></div>
+        <div id="platesPanel"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost" id="resetSide">Reset lado</button>
+          <button class="btn ghost" id="resetAll">Reset todo</button>
+        </div>
+      </section>
+
+      <!-- Resumen total -->
+      <section class="card" id="summaryCard">
+        <div class="title">3) Resumen del levantamiento</div>
+        <div class="hr"></div>
+        <div class="summary" id="summary"></div>
+        <div class="hr"></div>
+        <div class="row">
+          <button class="btn" id="exportCSV">Exportar CSV</button>
+          <button class="btn" id="exportPDF">Exportar PDF</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid g-2" style="margin-top:16px">
+      <!-- % del RM con presets y redondeo -->
+      <section class="card" id="pctCard">
+        <div class="title">4) Cálculo por % del RM</div>
+        <div class="hr"></div>
+        <div class="row">
+          <label for="rmInput">Tu RM (1 Repetición Máxima)</label>
+          <input type="number" id="rmInput" min="0" step="0.5" placeholder="Ej. 200">
+          <span id="rmUnits" class="badge">lb</span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label for="pctInput">Porcentaje</label>
+          <input type="number" id="pctInput" min="0" max="120" step="0.5" placeholder="Ej. 75">%
+          <button class="btn primary" id="calcPct">Calcular</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <span class="muted">Preajustes:</span>
+          <div class="chips" id="presets"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label for="roundMode">Redondeo (plato más cercano)</label>
+          <select id="roundMode">
+            <option value="nearest" selected>Al más cercano</option>
+            <option value="down">Hacia abajo</option>
+            <option value="up">Hacia arriba</option>
+          </select>
+        </div>
+        <div class="hr"></div>
+        <div id="pctOutput" class="summary"></div>
+        <div class="hr"></div>
+        <div class="row">
+          <button class="btn" id="exportPctCSV">Exportar CSV (%RM)</button>
+          <button class="btn" id="exportPctPDF">Exportar PDF (%RM)</button>
+        </div>
+      </section>
+
+      <!-- Ayuda / Notas -->
+      <section class="card">
+        <div class="title">Notas</div>
+        <div class="hr"></div>
+        <ul>
+          <li>Discos disponibles (lb): <span class="mono">45, 35, 25, 15, 10, 5, 2.5, 1.25</span></li>
+          <li>Al agregar discos, <strong>solo cargas un lado</strong>. La app duplica al otro.</li>
+          <li>El total incluye <strong>la barra</strong>.</li>
+          <li>Funciona sin conexión tras la primera carga (PWA + Service Worker).</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="toolbar">
+      <div class="muted">📲 Para instalar: Compartir → “Añadir a pantalla de inicio”.</div>
+      <button class="btn primary" id="installBtn" hidden>Instalar PWA</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================
+    // PWA install prompt
+    // ============================
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+
+    // Service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+
+    // ============================
+    // App logic (from v2 enhanced)
+    // ============================
+    const lbToKg = (lb)=> lb*0.45359237;
+    const kgToLb = (kg)=> kg/0.45359237;
+    const fmt = (v, units) => units==='kg' ? `${(lbToKg(v)).toFixed(2)} kg` : `${v.toFixed(2)} lb`;
+    const download = (filename, content, mime='text/plain')=>{
+      const blob = new Blob([content], {type: mime});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    };
+    const openPrintDoc = (title, html)=>{
+      const w = window.open('', '_blank');
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;line-height:1.5} h1{margin:0 0 12px 0} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:8px;text-align:left} .mono{font-family:ui-monospace,monospace}</style></head><body>${html}</body></html>`);
+      w.document.close();
+      w.focus();
+      w.print();
+    };
+
+    const PLATES = [45,35,25,15,10,5,2.5,1.25];
+
+    const state = {
+      units: 'lb',
+      barLb: 45,
+      side: { 45:0, 35:0, 25:0, 15:0, 10:0, 5:0, 2.5:0, 1.25:0 },
+    };
+
+    // DOM refs
+    const unitsSel = document.getElementById('units');
+    const barSel   = document.getElementById('bar');
+    const barDisplay = document.getElementById('barDisplay');
+    const platesPanel = document.getElementById('platesPanel');
+    const summaryDiv = document.getElementById('summary');
+    const resetSideBtn = document.getElementById('resetSide');
+    theResetAllBtn = document.getElementById('resetAll');
+    const rmInput = document.getElementById('rmInput');
+    const pctInput = document.getElementById('pctInput');
+    const rmUnits = document.getElementById('rmUnits');
+    const calcPctBtn = document.getElementById('calcPct');
+    const pctOutput = document.getElementById('pctOutput');
+    const roundModeSel = document.getElementById('roundMode');
+    const presetsDiv = document.getElementById('presets');
+    const exportCSVBtn = document.getElementById('exportCSV');
+    const exportPDFBtn = document.getElementById('exportPDF');
+    const exportPctCSVBtn = document.getElementById('exportPctCSV');
+    const exportPctPDFBtn = document.getElementById('exportPctPDF');
+
+    function renderPlatesPanel(){
+      platesPanel.innerHTML = '';
+      PLATES.forEach(w=>{
+        const row = document.createElement('div');
+        row.className = 'plate-row';
+        row.innerHTML = `
+          <div class="pill mono">${w} lb</div>
+          <div class="muted">(${lbToKg(w).toFixed(2)} kg)</div>
+          <div class="row">
+            <button class="btn" data-act="dec" data-w="${w}">−</button>
+            <input type="number" class="qty mono" data-w="${w}" value="${state.side[w]}" min="0" step="1" />
+            <button class="btn" data-act="inc" data-w="${w}">+</button>
+          </div>
+          <button class="btn ok" data-act="addpair" data-w="${w}">Agregar +1 por lado</button>
+        `;
+        platesPanel.appendChild(row);
+      });
+
+      platesPanel.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const w = parseFloat(e.currentTarget.getAttribute('data-w'));
+          const act = e.currentTarget.getAttribute('data-act');
+          if (act==='inc'){ state.side[w] = (state.side[w]||0) + 1; }
+          if (act==='dec'){ state.side[w] = Math.max(0,(state.side[w]||0) - 1); }
+          if (act==='addpair'){ state.side[w] = (state.side[w]||0) + 1; }
+          renderPlatesPanel();
+          renderAll();
+        });
+      });
+      platesPanel.querySelectorAll('input.qty').forEach(inp=>{
+        inp.addEventListener('change', (e)=>{
+          const w = parseFloat(e.currentTarget.getAttribute('data-w'));
+          const v = Math.max(0, Math.floor(parseFloat(e.currentTarget.value)||0));
+          state.side[w]=v; renderAll();
+        });
+      });
+    }
+
+    function getTotals(){
+      const sideTotalLb = PLATES.reduce((t,w)=> t + (w * (state.side[w]||0)), 0);
+      const totalLb = state.barLb + 2*sideTotalLb;
+      const countsPairs = {};
+      PLATES.forEach(w=> countsPairs[w] = (state.side[w]||0));
+      return { sideTotalLb, totalLb, countsPairs };
+    }
+
+    function renderSummary(){
+      const { sideTotalLb, totalLb, countsPairs } = getTotals();
+      const units = state.units;
+      const pairsList = PLATES.filter(w=>countsPairs[w]>0)
+        .map(w=>`<li>${countsPairs[w]} × <strong>${w} lb</strong> (pares)</li>`)
+        .join('');
+
+      const listHtml = pairsList ? `<ul>${pairsList}</ul>` : '<div class="muted">Sin discos aún.</div>';
+      const bar = state.barLb;
+
+      summaryDiv.innerHTML = `
+        <div class="row" style="justify-content:space-between">
+          <div><span class="badge">Barra</span> <span class="mono">${fmt(bar, units)}</span></div>
+          <div><span class="badge">Por lado</span> <span class="mono">${fmt(sideTotalLb, units)}</span></div>
+          <div><span class="badge">Total</span> <span class="mono" style="font-weight:800">${fmt(totalLb, units)}</span></div>
+        </div>
+        <div class="hr"></div>
+        <div class="muted">Conteo de discos (pares totales, se colocan uno por lado):</div>
+        ${listHtml}
+      `;
+    }
+
+    function renderBar(){
+      barDisplay.textContent = `${state.barLb.toFixed(1)} lb (${lbToKg(state.barLb).toFixed(2)} kg)`;
+    }
+
+    function renderUnits(){
+      rmUnits.textContent = state.units;
+    }
+
+    function renderPresets(){
+      presetsDiv.innerHTML = '';
+      const values = [50,55,60,65,70,75,80,85,90,95];
+      values.forEach(v=>{
+        const span = document.createElement('span');
+        span.className = 'chip';
+        span.textContent = v+'%';
+        span.addEventListener('click', ()=>{ pctInput.value = v; handleCalcPct(); });
+        presetsDiv.appendChild(span);
+      });
+    }
+
+    function renderAll(){
+      renderBar();
+      renderSummary();
+      renderUnits();
+      renderPresets();
+    }
+
+    function greedyPerSide(targetPerSideLb, mode){
+      const perSide = {}; PLATES.forEach(w=> perSide[w]=0);
+      let rem = targetPerSideLb;
+
+      for (const w of PLATES){
+        const count = Math.floor(rem / w + 1e-9);
+        if (count>0){ perSide[w] = count; rem -= count*w; rem = Math.max(0, +rem.toFixed(5)); }
+      }
+
+      if (Math.abs(rem) < 1e-6){
+        return { perSide, achievedPerSide: targetPerSideLb };
+      }
+
+      const step = 1.25;
+      const down = Math.floor(targetPerSideLb/step)*step;
+      const up   = Math.ceil(targetPerSideLb/step)*step;
+      let chosen = down;
+      if (mode==='up') chosen = up;
+      if (mode==='nearest'){
+        chosen = (Math.abs(up - targetPerSideLb) < Math.abs(targetPerSideLb - down)) ? up : down;
+      }
+
+      const perSide2 = {}; PLATES.forEach(w=> perSide2[w]=0);
+      let rem2 = chosen;
+      for (const w of PLATES){
+        const count = Math.floor(rem2 / w + 1e-9);
+        if (count>0){ perSide2[w] = count; rem2 -= count*w; rem2 = Math.max(0, +rem2.toFixed(5)); }
+      }
+      return { perSide: perSide2, achievedPerSide: chosen };
+    }
+
+    function calcPlatesForTarget(targetTotalLb, mode){
+      if (targetTotalLb < state.barLb){
+        return { ok:false, reason:'El objetivo es menor que el peso de la barra.' };
+      }
+      const targetPerSide = (targetTotalLb - state.barLb)/2;
+      const { perSide, achievedPerSide } = greedyPerSide(targetPerSide, mode);
+      return { ok:true, perSide, targetRoundedLb: state.barLb + 2*achievedPerSide };
+    }
+
+    function handleCalcPct(){
+      const rm = parseFloat(rmInput.value||'');
+      const pct = parseFloat(pctInput.value||'');
+      if (!isFinite(rm) || rm<=0 || !isFinite(pct) || pct<=0){
+        pctOutput.innerHTML = `<span style="color:var(--err)">Ingresa RM y % válidos.</span>`;
+        return;
+      }
+      const rmLb = (state.units==='kg') ? kgToLb(rm) : rm;
+      const targetLb = rmLb * (pct/100);
+      const mode = roundModeSel.value;
+      const res = calcPlatesForTarget(targetLb, mode);
+      if (!res.ok){ pctOutput.innerHTML = `<div class="muted">${res.reason}</div>`; return; }
+
+      const { perSide, targetRoundedLb } = res;
+      const perSideList = PLATES.filter(w=> perSide[w]>0)
+        .map(w=> `<li>${perSide[w]} × <strong>${w} lb</strong> (${lbToKg(w).toFixed(2)} kg) por lado</li>`)
+        .join('');
+      const htmlList = perSideList ? `<ul>${perSideList}</ul>` : '<div class="muted">Solo la barra.</div>';
+
+      pctOutput.innerHTML = `
+        <div class="row" style="justify-content:space-between">
+          <div><span class="badge">Objetivo</span> <span class="mono">${fmt(targetLb, state.units)}</span></div>
+          <div><span class="badge">Redondeado (${mode})</span> <span class="mono" style="font-weight:800">${fmt(targetRoundedLb, state.units)}</span></div>
+        </div>
+        <div class="hr"></div>
+        <div class="muted">Coloca por lado:</div>
+        ${htmlList}
+      `;
+    }
+
+    function buildSummaryCSV(){
+      const { sideTotalLb, totalLb, countsPairs } = getTotals();
+      const rows = [];
+      rows.push(['Campo','Valor']);
+      rows.push(['Unidades mostradas', state.units]);
+      rows.push(['Barra (lb)', state.barLb.toFixed(2)]);
+      rows.push(['Por lado (lb)', sideTotalLb.toFixed(2)]);
+      rows.push(['Total (lb)', totalLb.toFixed(2)]);
+      rows.push(['Total (kg)', lbToKg(totalLb).toFixed(2)]);
+      rows.push([]);
+      rows.push(['Disco (lb)','Pares (total izq+der)']);
+      PLATES.forEach(w=> rows.push([w, countsPairs[w]]));
+      return rows.map(r=> r.join(',')).join('\n');
+    }
+
+    function buildPctCSV(){
+      const rm = parseFloat(rmInput.value||'');
+      const pct = parseFloat(pctInput.value||'');
+      if (!isFinite(rm) || rm<=0 || !isFinite(pct) || pct<=0){ return 'Ingresa RM y % válidos'; }
+      const rmLb = (state.units==='kg') ? kgToLb(rm) : rm;
+      const targetLb = rmLb * (pct/100);
+      const mode = roundModeSel.value;
+      const { perSide, targetRoundedLb } = calcPlatesForTarget(targetLb, mode);
+
+      const rows = [];
+      rows.push(['Campo','Valor']);
+      rows.push(['Unidades mostradas', state.units]);
+      rows.push(['Barra (lb)', state.barLb.toFixed(2)]);
+      rows.push(['RM ingresado', rm.toFixed(2) + ' ' + state.units]);
+      rows.push(['Porcentaje', pct + '%']);
+      rows.push(['Objetivo (lb)', targetLb.toFixed(2)]);
+      rows.push(['Objetivo redondeado (lb)', targetRoundedLb.toFixed(2)]);
+      rows.push(['Objetivo redondeado (kg)', lbToKg(targetRoundedLb).toFixed(2)]);
+      rows.push([]);
+      rows.push(['Disco (lb)','Por lado']);
+      PLATES.forEach(w=> rows.push([w, perSide[w]||0]));
+      return rows.map(r=> r.join(',')).join('\n');
+    }
+
+    function buildSummaryHTML(){
+      const { sideTotalLb, totalLb, countsPairs } = getTotals();
+      return `
+        <h1>Resumen del levantamiento</h1>
+        <p><strong>Unidades:</strong> ${state.units}</p>
+        <table><tbody>
+          <tr><th>Barra</th><td class="mono">${fmt(state.barLb, state.units)}</td></tr>
+          <tr><th>Por lado</th><td class="mono">${fmt(sideTotalLb, state.units)}</td></tr>
+          <tr><th>Total</th><td class="mono">${fmt(totalLb, state.units)}</td></tr>
+        </tbody></table>
+        <h2>Conteo de discos (pares)</h2>
+        <table><thead><tr><th>Disco (lb)</th><th>Pares</th></tr></thead><tbody>
+          ${PLATES.map(w=>`<tr><td>${w}</td><td>${(state.side[w]||0)}</td></tr>`).join('')}
+        </tbody></table>
+      `;
+    }
+
+    function buildPctHTML(){
+      const rm = parseFloat(rmInput.value||'');
+      const pct = parseFloat(pctInput.value||'');
+      if (!isFinite(rm) || rm<=0 || !isFinite(pct) || pct<=0){
+        return '<p>Ingresa RM y % válidos.</p>';
+      }
+      const rmLb = (state.units==='kg') ? kgToLb(rm) : rm;
+      const targetLb = rmLb * (pct/100);
+      const mode = roundModeSel.value;
+      const { perSide, targetRoundedLb } = calcPlatesForTarget(targetLb, mode);
+      return `
+        <h1>% del RM</h1>
+        <table><tbody>
+          <tr><th>RM</th><td class="mono">${rm.toFixed(2)} ${state.units}</td></tr>
+          <tr><th>Porcentaje</th><td>${pct}%</td></tr>
+          <tr><th>Objetivo</th><td class="mono">${fmt(targetLb, state.units)}</td></tr>
+          <tr><th>Redondeado (${mode})</th><td class="mono">${fmt(targetRoundedLb, state.units)}</td></tr>
+        </tbody></table>
+        <h2>Colocación por lado</h2>
+        <table><thead><tr><th>Disco (lb)</th><th>Cantidad</th></tr></thead><tbody>
+          ${PLATES.map(w=>`<tr><td>${w}</td><td>${perSide[w]||0}</td></tr>`).join('')}
+        </tbody></table>
+      `;
+    }
+
+    // Listeners
+    unitsSel.addEventListener('change', ()=>{ state.units = unitsSel.value; renderAll(); });
+    barSel.addEventListener('change', ()=>{ state.barLb = parseFloat(barSel.value); renderAll(); });
+    resetSideBtn.addEventListener('click', ()=>{ PLATES.forEach(w=> state.side[w]=0); renderPlatesPanel(); renderAll(); });
+    theResetAllBtn.addEventListener('click', ()=>{ PLATES.forEach(w=> state.side[w]=0); state.barLb=parseFloat(barSel.value='45'); state.units = unitsSel.value='lb'; rmInput.value=''; pctInput.value=''; roundModeSel.value='nearest'; renderPlatesPanel(); renderAll(); pctOutput.innerHTML=''; });
+    calcPctBtn.addEventListener('click', handleCalcPct);
+
+    exportCSVBtn.addEventListener('click', ()=>{ download('resumen_levantamiento.csv', buildSummaryCSV(), 'text/csv'); });
+    exportPDFBtn.addEventListener('click', ()=>{ openPrintDoc('Resumen levantamiento', buildSummaryHTML()); });
+    exportPctCSVBtn.addEventListener('click', ()=>{ download('resumen_porcentaje_rm.csv', buildPctCSV(), 'text/csv'); });
+    exportPctPDFBtn.addEventListener('click', ()=>{ openPrintDoc('% del RM', buildPctHTML()); });
+
+    // Init
+    (function init(){
+      renderPlatesPanel();
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
